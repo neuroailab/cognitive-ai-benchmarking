@@ -86236,8 +86236,6 @@ TFFaceMesh.prototype.getEyePatches = async function(imageCanvas, width, height) 
     height: rightHeight
   };
 
-  eye
-
   this.predictionReady = true;
 
   return eyeObjs;
