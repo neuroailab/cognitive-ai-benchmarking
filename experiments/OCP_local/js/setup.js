@@ -1,5 +1,5 @@
 var DEBUG_MODE = true; //print debug and piloting information to the console
-
+var jspsychData = []; 
 var queryString = window.location.search;
 var urlParams = new URLSearchParams(queryString);
 var prolificID = urlParams.get('PROLIFIC_PID')   // ID unique to the participant
@@ -18,6 +18,7 @@ var inputID = null; // ID unique to the session served
   var dominoNumbers = urlParams.get("num_dominos")
 *****************************************************/
 
+// save to urlparams from above to the database
 function logTrialtoDB(data) {
   data.dbname = projName;
   data.colname = expName;
@@ -32,6 +33,7 @@ function logTrialtoDB(data) {
   console.log("Data: " + data);
 }
 
+
 function launchExperiment() {
   var stimInfo = {
     proj_name: projName,
@@ -45,11 +47,12 @@ function launchExperiment() {
     `iteration Name: ${iterName}`,
     `stimInfo ${stimInfo}`,
   );
-
-  console.log(experimentConfig);
+  // experimentConfig is an object that contains all the information you need to build your experiment. It is defined in the database.
+  console.log(experimentConfig); 
   buildAndRunExperiment(experimentConfig);
 }
 
+// everything else in this file is part of this function
 function buildAndRunExperiment(experimentConfig) {
   /*
   This function should be modified to fit your specific experiment needs.
@@ -59,6 +62,21 @@ function buildAndRunExperiment(experimentConfig) {
   and should build the appropriate jsPsych timeline. For each trial, make
   sure to specify an onFinish function that saves the trial response.
     --> see `stim_on_finish` function for an example. 
+
+  params: 
+    experimentConfig: a dictionary containing all the information you need
+      to build your experiment. This is the object you get from the database.
+      It's found in sample_input.js in this local directory.
+      It should contain the following keys:
+        - gameid: the ID of the game you are using
+        - stims: a dictionary of stimuli for the experiment. Each key is a
+          unique ID for the stimulus, and the value is a dictionary containing
+          the information you need to display the stimulus.
+        - familiarization_input: a dictionary of stimuli for the familiarization
+          trials. Each key is a unique ID for the stimulus, and the value is a
+          dictionary containing the information you need to display the stimulus.
+        - inputid: the ID of the session served. This is the ID you should use
+          to save the data to the database.
 */
   if (DEBUG_MODE) {
     console.log("building experiment with config: ", experimentConfig);
@@ -90,6 +108,15 @@ function buildAndRunExperiment(experimentConfig) {
     this.condition = "familiarization_prediction";
   }
 
+  function WebgazerExperiment() {
+    // extends Experiment to provide basis for webgazer trials
+    Experiment.call(this);
+    this.type = "webgazer-calibration";
+    this.condition = "webgazer_calibration";
+    this.prompt = "Please look at the various dots on the screen.";
+    this.choices = ["Continue"];
+  }
+
   var last_correct = undefined; //was the last trial correct? Needed for feedback in familiarization
   var correct = 0;
   var total = 0;
@@ -101,6 +128,23 @@ function buildAndRunExperiment(experimentConfig) {
   const includeMentalRotation = false;
   const includeGoodbye = true;
   const includeFamiliarizationTrials = true;
+  const includeWebgazer = true;
+
+  // // make webgazer trials
+  // var webgazer_trials = [];
+  // if (includeWebgazer) {
+  //   webgazer_trials = [
+  //     {
+  //       type: "webgazer",
+  //       dbname: projName,
+  //       colname: expName,
+  //       iterationName: iterName,
+  //       inputid: inputID,
+  //       prompt: "Please look at the center of the screen.",
+  //       on_finish: function (data) { },
+  //     },
+  //   ];
+  // }
 
   var gameid = experimentConfig.gameid;
   var stims = experimentConfig.stims;
@@ -168,6 +212,7 @@ function buildAndRunExperiment(experimentConfig) {
   // Now construct trials list
   var experimentInstance = new Experiment();
   var familiarizationExperimentInstance = new FamiliarizationExperiment();
+  // var webgazerExperimentInstance = new WebgazerExperiment();
 
   var fixation = {
     // per https://stackoverflow.com/questions/35826810/fixation-cross-in-jspsych
@@ -181,6 +226,22 @@ function buildAndRunExperiment(experimentConfig) {
     post_trial_gap: 0,
     on_finish: () => { }, // do nothing on trial end
   };
+
+  // // set up webgazer trials
+  // var webgazer_trials = _.map(
+  //   webgazer_trials,
+  //   function (n, i) {
+  //     return _.extend({}, webgazerExperimentInstance, n, {
+  //       trialNum: i,
+  //       on_finish: main_on_finish,
+  //       prolificID: prolificID,
+  //       studyID: studyID,
+  //       sessionID: sessionID,
+  //       gameID: gameid,
+  //     });
+  //   },
+  //   []
+  // );
 
   // set up familiarization trials
   var familiarization_trials_pre = _.map(
@@ -488,6 +549,121 @@ function buildAndRunExperiment(experimentConfig) {
     on_finish: main_on_finish,
   };
 
+  var camera_instructions = {
+		type: 'html-button-response',
+		stimulus: `
+		<p>In order to participate you must allow the experiment to use your camera.</p>
+		<p>You will be prompted to do this on the next screen.</p>
+		<p>If you do not wish to allow use of your camera, you cannot participate in this experiment.<p>
+		<p>It may take up to 30 seconds for the camera to initialize after you give permission.</p>
+		`,
+		choices: ['Got it'],
+	}
+
+	var init_camera = {
+		type: 'webgazer-init-camera'
+	}
+
+	var calibration_instructions = {
+		type: 'html-button-response',
+		stimulus: `
+		<p>Now you'll calibrate the eye tracking, so that the software can use the image of your eyes to predict where you are looking.</p>
+		<p>You'll see a series of dots appear on the screen. Look at each dot and click on it.</p>
+		`,
+		choices: ['Got it'],
+	}
+
+	var calibration = {
+		type: 'webgazer-calibrate',
+		calibration_points: [
+// 			[10,10], [10,50], [10,90], [50,10], [50,50], [50,90], [90,10], [90,50], [90,90],
+			[25,25],[75,25],[50,50],[25,75],[75,75]
+		],
+		repetitions_per_point: 2,
+		randomize_calibration_order: true,
+    on_finish: function(data){
+      console.log("Data: " + data);
+      // append data to jspsychData
+      jspsychData.push(data);}
+  } 
+
+	var validation_instructions = {
+		type: 'html-button-response',
+		stimulus: `
+		<p>Now we'll measure the accuracy of the calibration.</p>
+		<p>Look at each dot as it appears on the screen.</p>
+		<p style="font-weight: bold;">You do not need to click on the dots this time.</p>
+		`,
+		choices: ['Got it'],
+		post_trial_gap: 1000
+	}
+
+	var validation = {
+		type: 'webgazer-validate',
+		validation_points: 
+		[ 
+			[25,25],[75,25],[50,50],[25,75],[75,75] 
+		], 
+		randomize_validation_order: true,
+		show_validation_data: true,
+    on_finish: function(data){
+      console.log("Data: " + data);
+      // append data to jspsychData
+      jspsychData.push(data);}
+	}
+
+	var recalibrate_instructions = {
+		type: 'html-button-response',
+		stimulus: `
+		<p>The accuracy of the calibration is a little lower than we'd like.</p>
+		<p>Let's try calibrating one more time.</p>
+		<p>On the next screen, look at the dots and click on them.<p>
+		`,
+		choices: ['OK'],
+	}
+
+
+	var calibration_done = {
+		type: 'html-button-response',
+		stimulus: `
+		<p>Great, we're done with calibration!</p>`,
+		choices: ['OK']
+	}
+
+	var begin = {
+		type: 'html-keyboard-response',
+		stimulus: `<p>In the next screen, you will see an image.</p>
+		<p>Please speak about the image. The trial will end automatically.</p>
+		<p>Press any key to start.</p>`
+	}
+
+	var enter_full_screen = {
+		type: 'fullscreen',
+		fullscreen_mode: true
+	};
+
+	var exit_full_screen = {
+		type: 'fullscreen',
+		fullscreen_mode: false
+	};
+
+  var webgazer_trials = [
+    camera_instructions,
+    init_camera,
+    enter_full_screen,
+    calibration_instructions,
+    calibration,
+    validation_instructions,
+    validation,
+    recalibrate_instructions,
+    calibration,
+    validation_instructions,
+    validation,
+    calibration_done,
+    exit_full_screen,
+  ]
+
+
   // add all experiment elements to trials array
   if (includeFamiliarizationTrials)
     trials = _.concat(familiarization_trials, trials);
@@ -496,11 +672,16 @@ function buildAndRunExperiment(experimentConfig) {
   if (includeSurvey) trials.push(exitSurveyChoice);
   if (includeSurvey) trials.push(exitSurveyAge);
   if (includeMentalRotation) trials.push(mentalRotationChoice);
+  if (includeWebgazer) {  // add webgazer trials
+    trials = _.concat(trials, webgazer_trials);
+  }
   if (includeGoodbye) trials.push(goodbye);
 
   jsPsych.init({
-    timeline: trials,
-    default_iti: 1000,
-    show_progress_bar: true,
+    timeline: webgazer_trials,
+    extensions: [{ type: "webgazer" }],
+    // default_iti: 1000,
+    // show_progress_bar: true,
   });
+
 }

@@ -18,6 +18,14 @@ var inputID = null; // ID unique to the session served
 *****************************************************/
 
 function logTrialtoDB(data) {
+  /*
+  This function should be modified to fit your specific experiment needs.
+  The code you see here is an example for one kind of experiment.
+  The function receives trial data from jsPsych, adds any additional
+  url parameters, and saves the data to the database.
+  */
+
+  // add additional fields to data object
   data.dbname = projName;
   data.colname = expName;
   data.iterationName = iterName;
@@ -27,6 +35,7 @@ function logTrialtoDB(data) {
   data.sessionID = sessionID;
   data.studyID = studyID;
 
+  // log data to console
   if (DEBUG_MODE) {
     console.log(
       "Logging data to db: " +
@@ -38,7 +47,9 @@ function logTrialtoDB(data) {
     );
     console.log("Data: " + data);
   }
-  socket.emit("currentData", data);
+
+  // send data to server
+  socket.emit("currentData", data); 
 }
 
 function launchExperiment() {
@@ -181,6 +192,7 @@ function buildAndRunExperiment(experimentConfig) {
     logTrialtoDB(data);
   };
 
+  // log stim info to console if in debug mode
   var stim_log = function (data) {
     if (DEBUG_MODE) {
       console.log(
@@ -193,6 +205,7 @@ function buildAndRunExperiment(experimentConfig) {
   var experimentInstance = new Experiment();
   var familiarizationExperimentInstance = new FamiliarizationExperiment();
 
+  // this is just a fixation cross
   var fixation = {
     // per https://stackoverflow.com/questions/35826810/fixation-cross-in-jspsych
     type: "html-keyboard-response",
@@ -207,6 +220,9 @@ function buildAndRunExperiment(experimentConfig) {
   };
 
   // set up familiarization trials
+  // this basically iterates through the familiarization stimuli and creates a 
+  // familiarizationExperimentInstance (with jsPsych plugin parameters) 
+  // for each one with the appropriate stimulus and overlay
   var familiarization_trials_pre = _.map(
     familiarization_stims,
     function (n, i) {
@@ -280,10 +296,11 @@ function buildAndRunExperiment(experimentConfig) {
     },
   };
 
+  // interleave the pre and post familiarization trials
   var familiarization_trials = _.flatten(
     _.zip(familiarization_trials_pre, familiarization_trials_post)
   );
-  familiarization_trials.push(end_familiarization);
+  familiarization_trials.push(end_familiarization); // add the end familiarization trial to the end
 
   // Variables shared for all trials. Set up the important stuff here.
   var trials = _.map(stims, function (n, i) {
