@@ -86236,6 +86236,9 @@ TFFaceMesh.prototype.getEyePatches = async function(imageCanvas, width, height) 
     height: rightHeight
   };
 
+  // store the facemesh values in the eyeObjs Obj so that jsPsych has access to it
+  eyeObjs.facemesh = positions;
+
   this.predictionReady = true;
 
   return eyeObjs;

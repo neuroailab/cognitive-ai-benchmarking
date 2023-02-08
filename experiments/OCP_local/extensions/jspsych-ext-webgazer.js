@@ -232,7 +232,8 @@ jsPsych.extensions['webgazer'] = (function () {
       var d = {
         x: state.round_predictions ? Math.round(gazeData.x) : gazeData.x,
         y: state.round_predictions ? Math.round(gazeData.y) : gazeData.y,
-        t: gazeData.t
+        t: gazeData.t,
+        faceData: gazeData.eyeFeatures // gazeData.eyeFeatures.facemesh
       }
       if(state.activeTrial) {
         //console.log(`handleUpdate: t = ${Math.round(gazeData.t)}, now = ${Math.round(performance.now())}`);
