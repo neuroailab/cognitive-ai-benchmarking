@@ -17,7 +17,7 @@ jsPsych.plugins["webgazer-calibrate"] = (function() {
         },
         calibration_mode: {
           type: jsPsych.plugins.parameterType.STRING,
-          default: 'click', // options: 'click', 'view'
+          default: 'click', // options: 'click', 'view', continuous'
         },
         point_size:{
           type: jsPsych.plugins.parameterType.INT,
@@ -43,6 +43,10 @@ jsPsych.plugins["webgazer-calibrate"] = (function() {
     }
   
     plugin.trial = function(display_element, trial) {
+
+      var trial_data = {}
+      trial_data.dot_loc = [];
+      trial_data.gaze_data = [];
   
       var html = `
         <div id='webgazer-calibrate-container' style='position: relative; width:100vw; height:100vh'>
@@ -55,6 +59,8 @@ jsPsych.plugins["webgazer-calibrate"] = (function() {
       var reps_completed = 0;
       var points_completed = -1;
       var cal_points = null;
+
+      var start = performance.now();
 
       calibrate();
       
@@ -92,12 +98,11 @@ jsPsych.plugins["webgazer-calibrate"] = (function() {
       }
 
       function calibration_display_gaze_only(pt){
-        var pt_html = `<div id="calibration-point" style="width:${trial.point_size}px; height:${trial.point_size}px; border-radius:${trial.point_size}px; border: 1px solid #000; background-color: #333; position: absolute; left:${pt[0]}%; top:${pt[1]}%;"></div>`
-        wg_container.innerHTML = pt_html;
-
-        var pt_dom = wg_container.querySelector('#calibration-point');
         
         if(trial.calibration_mode == 'click'){
+          var pt_html = `<div id="calibration-point" style="width:${trial.point_size}px; height:${trial.point_size}px; border-radius:${trial.point_size}px; border: 1px solid #000; background-color: #333; position: absolute; left:${pt[0]}%; top:${pt[1]}%;"></div>`
+          wg_container.innerHTML = pt_html;
+          var pt_dom = wg_container.querySelector('#calibration-point');
           pt_dom.style.cursor = 'pointer';
           pt_dom.addEventListener('click', function(){
             next_calibration_point();
@@ -105,6 +110,10 @@ jsPsych.plugins["webgazer-calibrate"] = (function() {
         }
         
         if(trial.calibration_mode == 'view'){
+          var pt_html = `<div id="calibration-point" style="width:${trial.point_size}px; height:${trial.point_size}px; border-radius:${trial.point_size}px; border: 1px solid #000; background-color: #333; position: absolute; left:${pt[0]}%; top:${pt[1]}%;"></div>`
+          wg_container.innerHTML = pt_html;
+          var pt_dom = wg_container.querySelector('#calibration-point');
+
           var br = pt_dom.getBoundingClientRect();
           var x = br.left + br.width / 2;
           var y = br.top + br.height / 2;
@@ -124,6 +133,69 @@ jsPsych.plugins["webgazer-calibrate"] = (function() {
             }
           })
         }  
+
+        // this mode draws a moving dot on the screen and the user has to look at it
+        // the dot bounces around the screen and the user has to look at it for a certain amount of time
+        if (trial.calibration_mode == 'continuous') {
+          var pt_html = `<div id="calibration-point" style="width:${trial.point_size}px; height:${trial.point_size}px; border-radius:${trial.point_size}px; border: 1px solid #000; background-color: #333; position: absolute; left:${pt[0]}%; top:${pt[1]}%;"></div>`
+          wg_container.innerHTML = pt_html;
+          var pt_dom = wg_container.querySelector('#calibration-point');
+          var pt_start_cal = performance.now() + trial.time_to_saccade;
+          var pt_finish = performance.now() + trial.time_to_saccade + trial.time_per_point;
+          var br = pt_dom.getBoundingClientRect();
+          var x = br.left + br.width / 2;
+          var y = br.top + br.height / 2;
+          var xdir = 1;
+          var ydir = 1;
+          var xvel = 0.5 * br.width; 
+          var yvel = 0.5 * br.height;
+
+          requestAnimationFrame(function watch_dot() {
+            // update the position of the dot
+            x += xdir * xvel;
+            y += ydir * yvel;
+
+            // check if the dot has hit a wall and reverse direction if it has reached a wall
+            if (x > br.width / 2 + window.innerWidth) {
+              xdir = -1;
+            } else if (x < br.width / 2) {
+              xdir = 1;
+            }
+            if (y > br.height / 2 + window.innerHeight) {
+              ydir = -1;
+            } else if (y < br.height / 2) {
+              ydir = 1;
+            } 
+
+            // update the position of the dot
+            pt_dom.style.left = x - br.width / 2 + 'px';
+            pt_dom.style.top = y - br.height / 2 + 'px';
+            
+            // check if the user has looked at the dot for long enough
+            if (performance.now() > pt_start_cal) {
+              jsPsych.extensions['webgazer'].calibratePoint(x, y, 'click');
+              // save dot and gaze data
+              var gaze = jsPsych.extensions['webgazer'].state.currentGaze;
+              if (gaze) {
+                trial_data.gaze_data.push({
+                  gaze: gaze, 
+                  t: Math.round(performance.now()-pt_start_cal)
+                })
+                trial_data.dot_loc.push({
+                  x: x,
+                  y: y,
+                  t: Math.round(performance.now()-pt_start_cal)
+                })
+              }
+            }
+            if (performance.now() < pt_finish) {
+              requestAnimationFrame(watch_dot);
+            } else {
+              next_calibration_point();
+            }
+          })
+        }
+          
       }
 
       function calibration_done(){
@@ -142,11 +214,6 @@ jsPsych.plugins["webgazer-calibrate"] = (function() {
   
         // kill any remaining setTimeout handlers
         jsPsych.pluginAPI.clearAllTimeouts();
-  
-        // gather the data to store for the trial
-        var trial_data = {
-  
-        };
   
         // clear the display
         display_element.innerHTML = '';

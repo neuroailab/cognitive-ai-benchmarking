@@ -581,6 +581,7 @@ function buildAndRunExperiment(experimentConfig) {
 		],
 		repetitions_per_point: 2,
 		randomize_calibration_order: true,
+    calibration_mode: 'continuous',
     on_finish: function(data){
       console.log("Data: " + data);
       // append data to jspsychData
@@ -650,7 +651,7 @@ function buildAndRunExperiment(experimentConfig) {
   var webgazer_trials = [
     camera_instructions,
     init_camera,
-    enter_full_screen,
+    // enter_full_screen,
     calibration_instructions,
     calibration,
     validation_instructions,
