@@ -178,7 +178,9 @@ jsPsych.plugins["webgazer-calibrate"] = (function() {
               var gaze = jsPsych.extensions['webgazer'].state.currentGaze;
               if (gaze) {
                 trial_data.gaze_data.push({
-                  gaze: gaze, 
+                  pred_x: gaze.x, 
+                  pred_y: gaze.y,
+                  facemesh: gaze.faceData.facemesh,
                   t: Math.round(performance.now()-pt_start_cal)
                 })
                 trial_data.dot_loc.push({
@@ -195,7 +197,6 @@ jsPsych.plugins["webgazer-calibrate"] = (function() {
             }
           })
         }
-          
       }
 
       function calibration_done(){

@@ -110,7 +110,7 @@ FORBIDDEN_FILES = ["auth.json"]
 var serveFile = function (req, res) {
   var fileName = req.params[0];
   if (FORBIDDEN_FILES.includes(fileName)) {
-    // Don't serve files that contain secrets
+    // Don't serve files that c12q21ntain secrets
     console.log("Forbidden file requested: " + filename);
     return;
   }
@@ -127,7 +127,7 @@ function omit(obj, props) { //helper function to remove _id of stim object
   }
 }
 
-function initializeWithTrials(socket, proj_name, collection, it_name) {
+function f(socket, proj_name, collection, it_name) {
   var gameid = UUID();
   // var colname = 'human-physics-benchmarking-dominoes-pilot_production_1'; //insert STIMULI DATASETNAME here
   sendPostRequest('http://localhost:' + store_port + '/db/getstims', {

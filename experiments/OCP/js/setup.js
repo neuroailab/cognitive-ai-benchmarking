@@ -2,13 +2,14 @@ var DEBUG_MODE = true; //print debug and piloting information to the console
 
 var queryString = window.location.search;
 var urlParams = new URLSearchParams(queryString);
-var prolificID = urlParams.get("PROLIFIC_PID"); // ID unique to the participant
-var studyID = urlParams.get("STUDY_ID"); // ID unique to the study
-var sessionID = urlParams.get("SESSION_ID"); // ID unique to the particular submission
+var prolificID = urlParams.get("PROLIFIC_PID");   // ID unique to the participant
+var studyID = urlParams.get("STUDY_ID");          // ID unique to the study
+var sessionID = urlParams.get("SESSION_ID");      // ID unique to the particular submission
 var projName = urlParams.get("projName");
 var expName = urlParams.get("expName");
 var iterName = urlParams.get("iterName");
 var inputID = null; // ID unique to the session served
+// var platform = urlParams.get("platform");
 
 /****************************************************
   If you have any other URL Parameters that you need 
@@ -17,6 +18,7 @@ var inputID = null; // ID unique to the session served
   var dominoNumbers = urlParams.get("num_dominos")
 *****************************************************/
 
+// save to urlparams from above to the database
 function logTrialtoDB(data) {
   /*
   This function should be modified to fit your specific experiment needs.
@@ -91,6 +93,21 @@ function buildAndRunExperiment(experimentConfig) {
   and should build the appropriate jsPsych timeline. For each trial, make
   sure to specify an onFinish function that saves the trial response.
     --> see `stim_on_finish` function for an example. 
+
+  params: 
+    experimentConfig: a dictionary containing all the information you need
+      to build your experiment. This is the object you get from the database.
+      It's found in sample_input.js in this local directory.
+      It should contain the following keys:
+        - gameid: the ID of the game you are using
+        - stims: a dictionary of stimuli for the experiment. Each key is a
+          unique ID for the stimulus, and the value is a dictionary containing
+          the information you need to display the stimulus.
+        - familiarization_input: a dictionary of stimuli for the familiarization
+          trials. Each key is a unique ID for the stimulus, and the value is a
+          dictionary containing the information you need to display the stimulus.
+        - inputid: the ID of the session served. This is the ID you should use
+          to save the data to the database.
 */
   if (DEBUG_MODE) {
     console.log("building experiment with config: ", experimentConfig);

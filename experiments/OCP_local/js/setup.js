@@ -1,10 +1,10 @@
 var DEBUG_MODE = true; //print debug and piloting information to the console
-var jspsychData = []; 
+
 var queryString = window.location.search;
 var urlParams = new URLSearchParams(queryString);
-var prolificID = urlParams.get('PROLIFIC_PID')   // ID unique to the participant
-var studyID = urlParams.get('STUDY_ID')          // ID unique to the study
-var sessionID = urlParams.get('SESSION_ID')      // ID unique to the particular submission
+var prolificID = urlParams.get("PROLIFIC_PID");   // ID unique to the participant
+var studyID = urlParams.get("STUDY_ID");          // ID unique to the study
+var sessionID = urlParams.get("SESSION_ID");      // ID unique to the particular submission
 var projName = urlParams.get("projName");
 var expName = urlParams.get("expName");
 var iterName = urlParams.get("iterName");
@@ -20,6 +20,14 @@ var inputID = null; // ID unique to the session served
 
 // save to urlparams from above to the database
 function logTrialtoDB(data) {
+    /*
+  This function should be modified to fit your specific experiment needs.
+  The code you see here is an example for one kind of experiment.
+  The function receives trial data from jsPsych, adds any additional
+  url parameters, and saves the data to the database.
+  */
+
+  // add additional fields to data object
   data.dbname = projName;
   data.colname = expName;
   data.iterationName = iterName;
@@ -29,10 +37,22 @@ function logTrialtoDB(data) {
   data.sessionID = sessionID;
   data.studyID = studyID;
 
-  console.log(`Logging data to db: ${projName}\tcol: ${expName}\titeration: ${iterName}`)
-  console.log("Data: " + data);
-}
+  // log data to console
+  if (DEBUG_MODE) {
+    console.log(
+      "Logging data to db: " +
+        projName +
+        "\tcol: " +
+        expName +
+        "\titeration: " +
+        iterName
+    ); 
+    console.log("Data: " + data);
+  }
 
+   // send data to server
+   socket.emit("currentData", data); 
+}
 
 function launchExperiment() {
   var stimInfo = {
@@ -41,12 +61,19 @@ function launchExperiment() {
     iter_name: iterName,
   };
 
-  console.log(
-    `Project Name: ${projName}`,
-    `Experiment Name: ${expName}`,
-    `iteration Name: ${iterName}`,
-    `stimInfo ${stimInfo}`,
-  );
+  if (DEBUG_MODE) {
+    console.log(
+      "Project Name: ",
+      projName,
+      "Experiment Name: ",
+      expName,
+      "iteration Name: ",
+      iterName,
+      "stimInfo",
+      stimInfo
+    );
+  }
+
   // experimentConfig is an object that contains all the information you need to build your experiment. It is defined in the database.
   console.log(experimentConfig); 
   buildAndRunExperiment(experimentConfig);
@@ -85,7 +112,13 @@ function buildAndRunExperiment(experimentConfig) {
   inputID = experimentConfig.inputid;
 
   //randomize button order on a subject basis
-  var get_random_choices = () => { if (Math.random() > .5) { return ["NO", "YES"]; } else { return ["YES", "NO"]; } };
+  var get_random_choices = () => {
+    if (Math.random() > 0.5) {
+      return ["NO", "YES"];
+    } else {
+      return ["YES", "NO"];
+    }
+  };  
   var choices = get_random_choices(); //randomize button order
 
   // Define trial object with boilerplate
@@ -201,6 +234,7 @@ function buildAndRunExperiment(experimentConfig) {
     logTrialtoDB(data);
   };
 
+    // log stim info to console if in debug mode
   var stim_log = function (data) {
     if (DEBUG_MODE) {
       console.log(
@@ -214,6 +248,7 @@ function buildAndRunExperiment(experimentConfig) {
   var familiarizationExperimentInstance = new FamiliarizationExperiment();
   // var webgazerExperimentInstance = new WebgazerExperiment();
 
+    // this is just a fixation cross
   var fixation = {
     // per https://stackoverflow.com/questions/35826810/fixation-cross-in-jspsych
     type: "html-keyboard-response",
@@ -224,7 +259,7 @@ function buildAndRunExperiment(experimentConfig) {
       trial.trial_duration = Math.random() * 1000 + 500; //random duration in milliseconds
     },
     post_trial_gap: 0,
-    on_finish: () => { }, // do nothing on trial end
+    on_finish: () => {}, // do nothing on trial end
   };
 
   // // set up webgazer trials
@@ -244,6 +279,9 @@ function buildAndRunExperiment(experimentConfig) {
   // );
 
   // set up familiarization trials
+  // this basically iterates through the familiarization stimuli and creates a 
+  // familiarizationExperimentInstance (with jsPsych plugin parameters) 
+  // for each one with the appropriate stimulus and overlay
   var familiarization_trials_pre = _.map(
     familiarization_input,
     function (n, i) {
@@ -317,10 +355,11 @@ function buildAndRunExperiment(experimentConfig) {
     },
   };
 
+  // interleave the pre and post familiarization trials
   var familiarization_trials = _.flatten(
     _.zip(familiarization_trials_pre, familiarization_trials_post)
   );
-  familiarization_trials.push(end_familiarization);
+  familiarization_trials.push(end_familiarization); // add the end familiarization trial to the end
 
   // Variables shared for all trials. Set up the important stuff here.
   var trials = _.map(stims, function (n, i) {
@@ -577,15 +616,12 @@ function buildAndRunExperiment(experimentConfig) {
 		type: 'webgazer-calibrate',
 		calibration_points: [
 // 			[10,10], [10,50], [10,90], [50,10], [50,50], [50,90], [90,10], [90,50], [90,90],
-			[25,25],[75,25],[50,50],[25,75],[75,75]
+			[25,25]//,[75,25],[50,50],[25,75],[75,75]
 		],
 		repetitions_per_point: 2,
 		randomize_calibration_order: true,
     calibration_mode: 'continuous',
-    on_finish: function(data){
-      console.log("Data: " + data);
-      // append data to jspsychData
-      jspsychData.push(data);}
+    on_finish: main_on_finish
   } 
 
 	var validation_instructions = {
@@ -607,10 +643,7 @@ function buildAndRunExperiment(experimentConfig) {
 		], 
 		randomize_validation_order: true,
 		show_validation_data: true,
-    on_finish: function(data){
-      console.log("Data: " + data);
-      // append data to jspsychData
-      jspsychData.push(data);}
+    on_finish: main_on_finish
 	}
 
 	var recalibrate_instructions = {
